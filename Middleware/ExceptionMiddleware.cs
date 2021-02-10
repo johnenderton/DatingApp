@@ -31,6 +31,8 @@ namespace Middleware
             catch(Exception ex)
             {
                 this.logger.LogError(ex, ex.Message);
+                Console.WriteLine("Error:");
+                Console.WriteLine(ex.Message);
                 context.Response.ContentType = "application/json";
                 context.Response.StatusCode = (int) HttpStatusCode.InternalServerError;
 
