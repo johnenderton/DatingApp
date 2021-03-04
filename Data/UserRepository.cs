@@ -18,7 +18,6 @@ namespace Data
         {
             this.mapper = mapper;
             this.context = context;
-
         }
 
         public async Task<MemberDto> GetMemberAsync(string username)
