@@ -7,6 +7,7 @@ using Data;
 using DTOs;
 using Entities;
 using Extensions;
+using Helpers;
 using Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -29,9 +30,19 @@ namespace Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<MemberDto>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<MemberDto>>> GetUsers([FromQuery]UserParams userParams) // this is a query string so the param needed to be specified as FromQuery
         {
-            var users = await this.userRepository.GetMembersAsync();
+            var user = await this.userRepository.GetUserByUsernameAsync(User.GetUsername());
+            userParams.CurrentUsername = user.UserName;
+
+            if (string.IsNullOrEmpty(userParams.Gender))
+            {
+                userParams.Gender = user.Gender == "male" ? "female" : "male";
+            }
+
+            var users = await this.userRepository.GetMembersAsync(userParams);
+
+            Response.AddPaginationHeader(users.CurrentPage, users.PageSize, users.TotalCount, users.TotalPages);
 
             // map users to memberDto
             // application will take care of mapping memberDto to AppUser
