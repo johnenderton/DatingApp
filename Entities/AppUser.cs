@@ -22,6 +22,12 @@ namespace Entities
         public string Country { get; set; }
         public ICollection<Photo> Photos { get; set; }
 
+        // List of Users that like the log in user
+        public ICollection<UserLike> LikedByUsers { get; set; }
+
+        // List of Users that like by the log in user
+        public ICollection<UserLike> LikedUsers { get; set; }
+
         // public int GetAge()
         // {
         //     return DateOfBirth.CalculateAge();
