@@ -12,6 +12,7 @@ namespace Data
 
         public DbSet<AppUser> Users { get; set; }
         public DbSet<UserLike> Likes { get; set; }
+        public DbSet<Message> Messages { get; set; }
 
         // Give entities some configuration for many to many relationship
         protected override void OnModelCreating(ModelBuilder builder)
@@ -36,6 +37,16 @@ namespace Data
                 .WithMany(l => l.LikedByUsers)
                 .HasForeignKey(s => s.LikedUserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Message>()
+                .HasOne(r => r.Recipient)
+                .WithMany(m => m.MessagesRecieved)
+                .OnDelete(DeleteBehavior.Restrict); // Can only delete when both parties delete
+
+            builder.Entity<Message>() // Sender has many message sent
+                .HasOne(s => s.Sender)
+                .WithMany(m => m.MessagesSent)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

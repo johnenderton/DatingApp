@@ -28,9 +28,7 @@ namespace Entities
         // List of Users that like by the log in user
         public ICollection<UserLike> LikedUsers { get; set; }
 
-        // public int GetAge()
-        // {
-        //     return DateOfBirth.CalculateAge();
-        // }
+        public ICollection<Message> MessagesSent { get; set; }
+        public ICollection<Message> MessagesRecieved { get; set; }
     }
 }
