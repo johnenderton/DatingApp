@@ -7,6 +7,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using Services;
+using Entities;
+using Microsoft.AspNetCore.Identity;
 
 namespace Extensions
 {
@@ -14,6 +16,16 @@ namespace Extensions
     {
         public static IServiceCollection AddIdentityServices(this IServiceCollection services, IConfiguration config)
         {
+            services.AddIdentityCore<AppUser>(opt => {
+                opt.Password.RequireNonAlphanumeric = false;
+
+            })
+                .AddRoles<AppRole>()
+                .AddRoleManager<RoleManager<AppRole>>()
+                .AddSignInManager<SignInManager<AppUser>>()
+                .AddRoleValidator<RoleValidator<AppRole>>()
+                .AddEntityFrameworkStores<DataContext>(); // set up database with all the tables we need to create dotnet identity tables
+
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer
             (
                 options =>
@@ -27,6 +39,10 @@ namespace Extensions
                     };
                 }
             );
+            services.AddAuthorization(opt => {
+                opt.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+                opt.AddPolicy("ModeratePhotoRole", policy => policy.RequireRole("Admin", "Moderator"));
+            });
 
             return services;
         }
