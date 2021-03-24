@@ -8,6 +8,14 @@ namespace Interfaces
 {
     public interface IMessageRepository
     {
+        Task<Group> GetGroupForConnection(string connectionId);
+        void AddGroup(Group group);
+        void RemoveConnection(Connection connection);
+        Task<Connection> GetConnection(string connectionId);
+        Task<Group> GetMessageGroup(string groupName);
+        // These methods above help manage connection in SignalR
+
+
         void AddMessage(Message message);
         void DeleteMessage(Message message);
         Task<Message> GetMessage(int id);

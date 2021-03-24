@@ -18,7 +18,7 @@ namespace Entities
         // Message specific properties
         public string Content { get; set; }
         public DateTime? DateRead { get; set; }
-        public DateTime MessageSent { get; set; } = DateTime.Now;
+        public DateTime MessageSent { get; set; } = DateTime.UtcNow;
         // Message in the Server will be deleted if both sender and recipient delete it
         public bool SenderDeleted { get; set; }
         public bool RecipientDeleted { get; set; }

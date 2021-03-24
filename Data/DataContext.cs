@@ -17,6 +17,8 @@ namespace Data
         //public DbSet<AppUser> Users { get; set; }
         public DbSet<UserLike> Likes { get; set; }
         public DbSet<Message> Messages { get; set; }
+        public DbSet<Group> Groups { get; set; }
+        public DbSet<Connection> Connections { get; set; }
 
         // Give entities some configuration for many to many relationship
         protected override void OnModelCreating(ModelBuilder builder)
