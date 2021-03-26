@@ -14,14 +14,12 @@ namespace Controllers
     [Authorize]
     public class MessagesController : BaseApiController
     {
-        private readonly IUserRepository userReposiroty;
-        private readonly IMessageRepository messageRepository;
+        private readonly IUnitOfWork unitOfWork;
         private readonly IMapper mapper;
-        public MessagesController(IUserRepository userReposiroty, IMessageRepository messageRepository, IMapper mapper)
+        public MessagesController(IUnitOfWork unitOfWork, IMapper mapper)
         {
             this.mapper = mapper;
-            this.messageRepository = messageRepository;
-            this.userReposiroty = userReposiroty;
+            this.unitOfWork = unitOfWork;
         }
 
         [HttpPost]
@@ -34,8 +32,8 @@ namespace Controllers
             // Get hold of both our users in the sender and the recipient
             // As we need to populate the messages when we create it
             // And going the other way, we need to return a dto from this as well
-            var sender = await this.userReposiroty.GetUserByUsernameAsync(username);
-            var recipient = await this.userReposiroty.GetUserByUsernameAsync(createMessageDto.RecipientUsername);
+            var sender = await this.unitOfWork.UserRepository.GetUserByUsernameAsync(username);
+            var recipient = await this.unitOfWork.UserRepository.GetUserByUsernameAsync(createMessageDto.RecipientUsername);
 
             if (recipient == null) return NotFound();
 
@@ -47,9 +45,9 @@ namespace Controllers
                 RecipientUsername = recipient.UserName,
                 Content = createMessageDto.Content
             };
-            this.messageRepository.AddMessage(message);
+            this.unitOfWork.MessageRepository.AddMessage(message);
 
-            if (await this.messageRepository.SaveAllAsync()) return Ok(this.mapper.Map<MessageDto>(message));
+            if (await this.unitOfWork.Complete()) return Ok(mapper.Map<MessageDto>(message));
 
             return BadRequest("Failed To Save Message");
         }
@@ -59,25 +57,25 @@ namespace Controllers
         {
             messageParams.Username = User.GetUsername();
 
-            var messages = await this.messageRepository.GetMessageForUser(messageParams);
+            var messages = await this.unitOfWork.MessageRepository.GetMessageForUser(messageParams);
             Response.AddPaginationHeader(messages.CurrentPage, messages.PageSize, messages.TotalCount, messages.TotalPages);
 
             return messages;
         }
 
-        [HttpGet("thread/{username}")] // username here is other participant not current user
-        public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessageThread(string username)
-        {
-            var currentUsername = User.GetUsername();
+        // [HttpGet("thread/{username}")] // username here is other participant not current user
+        // public async Task<ActionResult<IEnumerable<MessageDto>>> GetMessageThread(string username)
+        // {
+        //     var currentUsername = User.GetUsername();
 
-            return Ok(await this.messageRepository.GetMessageThread(currentUsername, username));
-        }
+        //     return Ok(await this.unitOfWork.MessageRepository.GetMessageThread(currentUsername, username));
+        // }
 
         [HttpDelete("{id}")] // Id of the message
         public async Task<ActionResult> DeleteMessage(int id)
         {
             var username = User.GetUsername();
-            var message = await this.messageRepository.GetMessage(id);
+            var message = await this.unitOfWork.MessageRepository.GetMessage(id);
 
             if (message.Sender.UserName != username && message.Recipient.UserName != username)
             {
@@ -88,9 +86,9 @@ namespace Controllers
 
             if (message.SenderDeleted && message.RecipientDeleted)
             {
-                this.messageRepository.DeleteMessage(message);
+                this.unitOfWork.MessageRepository.DeleteMessage(message);
             }
-            if (await this.messageRepository.SaveAllAsync()) return Ok();
+            if (await this.unitOfWork.Complete()) return Ok();
 
             return BadRequest("Problem Deleting the Mesage!");
         }

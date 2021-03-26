@@ -13,18 +13,16 @@ namespace SignalR
     // SignalR Hub will not access to httpResponse since it does not use it
     public class MessageHub : Hub
     {
-        private readonly IMessageRepository messageRepository;
         private readonly IMapper mapper;
-        private readonly IUserRepository userRepository;
         private readonly IHubContext<PresenceHub> presenceHub;
         private readonly PresenceTracker tracker;
-        public MessageHub(IMessageRepository messageRepository, IMapper mapper, IUserRepository userRepository, IHubContext<PresenceHub> presenceHub, PresenceTracker tracker)
+        private readonly IUnitOfWork unitOfWork;
+        public MessageHub(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<PresenceHub> presenceHub, PresenceTracker tracker)
         {
+            this.unitOfWork = unitOfWork;
             this.tracker = tracker;
             this.presenceHub = presenceHub;
-            this.userRepository = userRepository;
             this.mapper = mapper;
-            this.messageRepository = messageRepository;
         }
 
         public override async Task OnConnectedAsync()
@@ -42,7 +40,12 @@ namespace SignalR
             var group = await AddToGroup(groupName);
             await Clients.Group(groupName).SendAsync("UpdatedGroup", group);
 
-            var messages = await messageRepository.GetMessageThread(Context.User.GetUsername(), otherUser);
+            var messages = await unitOfWork.MessageRepository.GetMessageThread(Context.User.GetUsername(), otherUser);
+
+            // If there are changes in entity message through function GetMessageThread
+            // and the changes might come from DateRead property
+            // save changes
+            if (unitOfWork.HasChanges()) await unitOfWork.Complete();
 
             // This one send message to both users connected to hub
             // eventhough either one already have the message
@@ -66,8 +69,8 @@ namespace SignalR
             // Get hold of both our users in the sender and the recipient
             // As we need to populate the messages when we create it
             // And going the other way, we need to return a dto from this as well
-            var sender = await this.userRepository.GetUserByUsernameAsync(username);
-            var recipient = await this.userRepository.GetUserByUsernameAsync(createMessageDto.RecipientUsername);
+            var sender = await this.unitOfWork.UserRepository.GetUserByUsernameAsync(username);
+            var recipient = await this.unitOfWork.UserRepository.GetUserByUsernameAsync(createMessageDto.RecipientUsername);
 
             if (recipient == null) throw new HubException("User Not Found!");
 
@@ -80,7 +83,7 @@ namespace SignalR
                 Content = createMessageDto.Content
             };
             var groupName = GetGroupName(sender.UserName, recipient.UserName);
-            var group = await messageRepository.GetMessageGroup(groupName);
+            var group = await unitOfWork.MessageRepository.GetMessageGroup(groupName);
 
             if (group.Connections.Any(x => x.Username == recipient.UserName))
             {
@@ -93,17 +96,14 @@ namespace SignalR
                 if (connections != null) // user is online but not in the same group
                 {
                     await presenceHub.Clients.Clients(connections).SendAsync("NewMessageReceived",
-                        new {username = sender.UserName, knownAs = sender.KnownAs}
+                        new { username = sender.UserName, knownAs = sender.KnownAs }
                     );
                 }
             }
+            this.unitOfWork.MessageRepository.AddMessage(message);
 
-            this.messageRepository.AddMessage(message);
-
-
-            if (await this.messageRepository.SaveAllAsync())
+            if (await this.unitOfWork.Complete())
             {
-
                 await Clients.Group(groupName).SendAsync("NewMessage", mapper.Map<MessageDto>(message));
             }
         }
@@ -120,28 +120,28 @@ namespace SignalR
         // HubCallerContext give us access to username and connectionID
         private async Task<Group> AddToGroup(string groupName)
         {
-            var group = await messageRepository.GetMessageGroup(groupName);
+            var group = await unitOfWork.MessageRepository.GetMessageGroup(groupName);
             // When user connect to this hub, they always get new connection id
             var connection = new Connection(Context.ConnectionId, Context.User.GetUsername());
 
             if (group == null)
             {
                 group = new Group(groupName);
-                messageRepository.AddGroup(group);
+                unitOfWork.MessageRepository.AddGroup(group);
             }
             group.Connections.Add(connection);
-            if (await messageRepository.SaveAllAsync()) return group;
+            if (await unitOfWork.Complete()) return group;
 
             throw new HubException("Failed to join group!");
         }
 
         private async Task<Group> RemoveFromMessageGroup()
         {
-            var group = await messageRepository.GetGroupForConnection(Context.ConnectionId);
+            var group = await unitOfWork.MessageRepository.GetGroupForConnection(Context.ConnectionId);
             var connection = group.Connections.FirstOrDefault(x => x.ConnectionId == Context.ConnectionId);
-            messageRepository.RemoveConnection(connection);
+            unitOfWork.MessageRepository.RemoveConnection(connection);
 
-            if (await messageRepository.SaveAllAsync()) return group;
+            if (await unitOfWork.Complete()) return group;
 
             throw new HubException("Failed to Remove From Group!");
         }

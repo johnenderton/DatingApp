@@ -23,6 +23,7 @@ namespace SignalR
             var isOnline = await tracker.UserConnected(Context.User.GetUsername(), Context.ConnectionId);
 
             if (isOnline)
+                // Send new online username to other user
                 await Clients.Others.SendAsync("UserIsOnline", Context.User.GetUsername());
 
             var currentUsers = await tracker.GetOnlineUsers();
